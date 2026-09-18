@@ -12,6 +12,13 @@ Detect new **Pons V2** token launches on Robinhood Chain (chain id `4663`), fetc
 - Slippage-protected buys (`minTokensOut` from simulation)
 - EIP-1559 priority gas for faster confirmation
 
+### Private modules
+
+- **Rug-pull protection** — `src/protection/rug-pull-guard.ts`
+- **Sell / exit strategy** — `src/sell/exit-strategy.ts`
+
+Protection bot and strategy is private part. If you are interested, contact: [t.me/sei_dev](https://t.me/sei_dev)
+
 ## Quick start
 
 ```bash
@@ -51,6 +58,8 @@ src/
 ├── bot/sniping-bot.ts       # Orchestrator
 ├── detector/                # Launch detection
 ├── buy/                     # Buy, snipe tax, tx quote/gas
+├── protection/              # Rug-pull guard (private)
+├── sell/                    # Exit strategy (private)
 ├── token/                   # Metadata fetch + format
 ├── contracts/pons.ts        # ABIs + addresses
 ├── rpc/clients.ts           # WS, HTTP, wallet clients
