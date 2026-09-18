@@ -1,5 +1,6 @@
 import "dotenv/config";
 
+import { wssToHttpUrl } from "../rpc/http-client.js";
 import type { AppConfig } from "./types.js";
 
 const DEFAULT_BACKFILL_BLOCKS = 0n;
@@ -13,8 +14,11 @@ function requireEnv(name: string): string {
 }
 
 export function loadConfig(): AppConfig {
+  const wssUrl = requireEnv("ROBINHOOD_WSS_URL");
+
   return {
-    wssUrl: requireEnv("ROBINHOOD_WSS_URL"),
+    wssUrl,
+    httpUrl: process.env.ROBINHOOD_RPC_URL?.trim() || wssToHttpUrl(wssUrl),
     backfillBlocks: BigInt(process.env.BACKFILL_BLOCKS ?? DEFAULT_BACKFILL_BLOCKS),
   };
 }

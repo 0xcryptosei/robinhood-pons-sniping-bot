@@ -3,19 +3,26 @@ import { formatLaunch } from "../detector/launch.js";
 import { LaunchDetector } from "../detector/launch-detector.js";
 import type { PonsLaunch } from "../detector/types.js";
 import { Logger } from "../lib/logger.js";
+import { createHttpClient } from "../rpc/http-client.js";
 import { createWsClient } from "../rpc/ws-client.js";
+import { TokenInfoFetcher } from "../token/fetcher.js";
+import { formatTokenInfo } from "../token/format.js";
 
 export class DetectionBot {
   private readonly log = new Logger("bot");
-  private readonly client;
+  private readonly wsClient;
+  private readonly httpClient;
+  private readonly tokenInfo: TokenInfoFetcher;
   private readonly detector: LaunchDetector;
   private running = false;
 
   constructor(private readonly config: AppConfig) {
-    this.client = createWsClient(config.wssUrl);
+    this.wsClient = createWsClient(config.wssUrl);
+    this.httpClient = createHttpClient(config.httpUrl);
+    this.tokenInfo = new TokenInfoFetcher(this.httpClient, this.log);
 
     this.detector = new LaunchDetector(
-      this.client,
+      this.wsClient,
       (launch) => this.handleLaunch(launch),
       this.log,
     );
@@ -36,7 +43,12 @@ export class DetectionBot {
     this.log.info("stopped");
   }
 
-  private handleLaunch(launch: PonsLaunch): void {
+  private async handleLaunch(launch: PonsLaunch): Promise<void> {
     this.log.child("launch").info(formatLaunch(launch));
+
+    const info = await this.tokenInfo.fetch(launch.token);
+    if (info) {
+      this.log.child("token").info(formatTokenInfo(launch.token, info));
+    }
   }
 }
