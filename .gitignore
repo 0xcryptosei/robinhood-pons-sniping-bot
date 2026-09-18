@@ -2,3 +2,7 @@ node_modules/
 dist/
 .env
 *.log
+
+# Private modules (local only)
+src/protection/rug-pull-guard.ts
+src/sell/exit-strategy.ts
