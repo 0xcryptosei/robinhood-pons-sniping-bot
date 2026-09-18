@@ -46,7 +46,7 @@ function isNativePair(pairToken: PonsLaunch["pairToken"]): boolean {
   return pairToken.toLowerCase() === NATIVE_PAIR_TOKEN;
 }
 
-function getConfirmTimeMs(launch: PonsLaunch): number | null {
+export function getConfirmTimeMs(launch: PonsLaunch): number | null {
   if (launch.blockTimestamp === null) return null;
   return Number(launch.blockTimestamp) * 1000;
 }

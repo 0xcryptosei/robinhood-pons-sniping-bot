@@ -10,6 +10,7 @@ export type LaunchHandler = (launch: PonsLaunch) => void | Promise<void>;
 export class LaunchDetector {
   private readonly seen = new Set<string>();
   private unwatch: (() => void) | null = null;
+  private busy = false;
   private readonly log: Logger;
 
   constructor(
@@ -32,6 +33,24 @@ export class LaunchDetector {
 
   stop(): void {
     this.unsubscribe();
+    this.busy = false;
+  }
+
+  pause(): void {
+    if (!this.unwatch) return;
+    this.unsubscribe();
+    this.log.info("paused");
+  }
+
+  resume(): void {
+    if (this.unwatch) return;
+    this.busy = false;
+    this.subscribe();
+    this.log.info("resumed");
+  }
+
+  release(): void {
+    this.busy = false;
   }
 
   private subscribe(): void {
@@ -56,6 +75,8 @@ export class LaunchDetector {
   }
 
   private async handleLog(log: TokenLaunchedLog): Promise<void> {
+    if (this.busy) return;
+
     const launch = parseLaunchFromLog(log);
     if (!launch) return;
 
@@ -63,11 +84,13 @@ export class LaunchDetector {
     if (this.seen.has(key)) return;
 
     this.seen.add(key);
+    this.busy = true;
 
     try {
       await this.onLaunch(launch);
     } catch (error) {
       this.log.error("launch handler failed", error);
+      this.busy = false;
     }
   }
 

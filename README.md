@@ -1,12 +1,13 @@
 # Robinhood Pons Sniping Bot
 
-Detect new **Pons V2** token launches on Robinhood Chain (chain id `4663`) via WebSocket, log detection latency, and fetch on-chain token metadata.
+Detect new **Pons V2** token launches on Robinhood Chain (chain id `4663`) via WebSocket, fetch token metadata, and buy on the bonding curve.
 
 ## Features
 
 - Live `TokenLaunched` event subscription on the Pons V2 factory
 - Detection delay logging (`confirmTime` vs detect time)
 - Token metadata reads (`name`, `symbol`, `decimals`, `getTokenInfo()`)
+- Bonding curve buy via `curve.buy()` (ETH pairs, configurable delay after confirm time)
 
 ## Quick start
 
@@ -24,6 +25,11 @@ npm start
 | `ROBINHOOD_WSS_URL` | yes | WebSocket RPC URL |
 | `ROBINHOOD_RPC_URL` | no | HTTP RPC for token reads (defaults to WSS URL with `https://`) |
 | `BACKFILL_BLOCKS` | no | Historical log backfill on startup (`0` = live only) |
+| `BUY_ENABLED` | no | Enable auto-buy (`true` by default) |
+| `PRIVATE_KEY` | if buy enabled | Wallet private key for buy txs |
+| `BUY_AMOUNT_ETH` | no | ETH amount per buy (default `0.01`) |
+| `BUY_DELAY_MS` | no | Wait after on-chain confirm before buy (default `2000`) |
+| `BUY_RESUME_ON_FAILURE` | no | Resume detection after failed buy (default `false`) |
 
 ## Example output
 
@@ -42,11 +48,12 @@ Sample log lines:
 
 ```
 src/
-├── bot/detection-bot.ts
+├── bot/sniping-bot.ts
+├── buy/               # Curve buy execution
 ├── detector/          # Launch event parsing + subscription
 ├── token/             # Token metadata fetch + format
 ├── contracts/         # Pons ABIs + addresses
-├── rpc/               # WebSocket + HTTP clients
+├── rpc/               # WebSocket, HTTP, wallet clients
 ├── config/
 ├── chain/
 └── lib/

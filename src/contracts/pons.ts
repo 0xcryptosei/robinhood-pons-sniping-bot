@@ -12,6 +12,10 @@ export const ponsFactoryAbi = [
   ),
 ] as const;
 
+export const ponsCurveAbi = parseAbi([
+  "function buy(uint256 quoteIn, uint256 minTokensOut, address recipient) payable returns (uint256 tokensOut)",
+]);
+
 export const ponsTokenAbi = parseAbi([
   "function name() view returns (string)",
   "function symbol() view returns (string)",

@@ -1,12 +1,14 @@
 import process from "process";
 
-import { DetectionBot } from "./bot/detection-bot.js";
-import { loadConfig } from "./config/index.js";
+import { SnipingBot } from "./bot/sniping-bot.js";
+import { loadConfig, validateConfig } from "./config/index.js";
 import { rootLogger } from "./lib/logger.js";
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  const bot = new DetectionBot(config);
+  validateConfig(config);
+
+  const bot = new SnipingBot(config);
 
   const shutdown = () => {
     bot.stop();
