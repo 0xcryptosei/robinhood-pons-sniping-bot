@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import type { Hex } from "viem";
 
-import { wssToHttpUrl } from "../rpc/http-client.js";
+import { wssToHttpUrl } from "../lib/url.js";
 import type { AppConfig } from "./types.js";
 
 const DEFAULT_BACKFILL_BLOCKS = 0n;

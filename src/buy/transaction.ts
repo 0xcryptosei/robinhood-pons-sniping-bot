@@ -1,8 +1,20 @@
-import type { Address, PublicClient } from "viem";
+import { parseGwei, type Address, type PublicClient } from "viem";
 
+import type { BuyConfig } from "../config/types.js";
 import { ponsCurveAbi } from "../contracts/pons.js";
 
-/** Simulate curve.buy to estimate tokensOut at current pool state. */
+export type TxGasParams = {
+  maxPriorityFeePerGas: bigint;
+  maxFeePerGas: bigint;
+};
+
+export function buildTxGasParams(config: BuyConfig): TxGasParams {
+  return {
+    maxPriorityFeePerGas: parseGwei(config.priorityFeeGwei),
+    maxFeePerGas: parseGwei(config.maxFeeGwei),
+  };
+}
+
 export async function quoteCurveBuy(
   client: PublicClient,
   curve: Address,
@@ -22,6 +34,5 @@ export async function quoteCurveBuy(
 }
 
 export function applySlippage(expectedOut: bigint, slippageBps: number): bigint {
-  const factor = 10_000 - slippageBps;
-  return (expectedOut * BigInt(factor)) / 10_000n;
+  return (expectedOut * BigInt(10_000 - slippageBps)) / 10_000n;
 }

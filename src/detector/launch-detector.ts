@@ -1,6 +1,7 @@
 import type { PublicClient } from "viem";
 
 import { PONS_V2_FACTORY, ponsFactoryAbi } from "../contracts/pons.js";
+import { formatError } from "../lib/format-error.js";
 import { Logger } from "../lib/logger.js";
 import { launchKey, parseLaunchFromLog, type TokenLaunchedLog } from "./launch.js";
 import type { PonsLaunch } from "./types.js";
@@ -89,7 +90,7 @@ export class LaunchDetector {
     try {
       await this.onLaunch(launch);
     } catch (error) {
-      this.log.error("launch handler failed", error);
+      this.log.error(`launch handler failed: ${formatError(error)}`);
       this.busy = false;
     }
   }
@@ -115,12 +116,7 @@ export class LaunchDetector {
 
       this.log.info(`backfill complete (${logs.length} events)`);
     } catch (error) {
-      this.log.warn(`backfill failed, using live stream only: ${this.formatError(error)}`);
+      this.log.warn(`backfill failed: ${formatError(error)}`);
     }
-  }
-
-  private formatError(error: unknown): string {
-    if (error instanceof Error) return error.message;
-    return String(error);
   }
 }

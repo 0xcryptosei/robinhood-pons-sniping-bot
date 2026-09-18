@@ -5,10 +5,10 @@ import type { BuyConfig } from "../config/types.js";
 import { NATIVE_PAIR_TOKEN, ponsCurveAbi } from "../contracts/pons.js";
 import { getConfirmTimeMs } from "../detector/launch.js";
 import type { PonsLaunch } from "../detector/types.js";
-import { sleep } from "../lib/sleep.js";
+import { formatError } from "../lib/format-error.js";
 import { Logger } from "../lib/logger.js";
-import { buildTxGasParams } from "./gas.js";
-import { applySlippage, quoteCurveBuy } from "./quote.js";
+import { sleep } from "../lib/sleep.js";
+import { applySlippage, buildTxGasParams, quoteCurveBuy } from "./transaction.js";
 import { SnipeTaxGuard } from "./snipe-tax.js";
 import { BuyOutcome } from "./types.js";
 
@@ -26,15 +26,7 @@ export class CurveBuyer {
   ) {
     this.quoteIn = parseEther(config.amountEth);
     this.log = logger.child("buy");
-    this.snipeTaxGuard = new SnipeTaxGuard(
-      publicClient,
-      {
-        maxSnipeTaxBps: config.maxSnipeTaxBps,
-        pollIntervalMs: config.snipeTaxPollMs,
-        maxWaitMs: config.snipeTaxMaxWaitMs,
-      },
-      logger,
-    );
+    this.snipeTaxGuard = new SnipeTaxGuard(publicClient, config, logger);
   }
 
   get address(): Address {
@@ -48,15 +40,7 @@ export class CurveBuyer {
       return BuyOutcome.Skipped;
     }
 
-    const confirmMs = getConfirmTimeMs(launch)!;
-    const targetMs = confirmMs + this.config.delayMs;
-    const waitMs = Math.max(0, targetMs - Date.now());
-
-    this.log.info(
-      `waiting ${waitMs}ms before snipe-tax check token=${launch.token} curve=${launch.curve}`,
-    );
-
-    await sleep(waitMs);
+    await this.waitUntilMinDelay(launch);
 
     const taxResult = await this.snipeTaxGuard.waitUntilAcceptable(
       launch.curve,
@@ -65,43 +49,51 @@ export class CurveBuyer {
 
     if (!taxResult.ok) {
       this.log.warn(
-        `skip ${launch.token}: snipe tax too high (${taxResult.snipeTaxBps} bps) after ${this.config.snipeTaxMaxWaitMs}ms`,
+        `skip ${launch.token}: snipe tax ${taxResult.snipeTaxBps} bps exceeds max ${this.config.maxSnipeTaxBps}`,
       );
       return BuyOutcome.Skipped;
     }
 
-    let expectedOut: bigint;
-    let minTokensOut: bigint;
-
-    try {
-      expectedOut = await quoteCurveBuy(
-        this.publicClient,
-        launch.curve,
-        this.walletAddress,
-        this.quoteIn,
-      );
-      minTokensOut = applySlippage(expectedOut, this.config.slippageBps);
-    } catch (error) {
-      this.log.error(`quote failed token=${launch.token}`, error);
+    const minTokensOut = await this.quoteMinTokensOut(launch);
+    if (minTokensOut === null) {
       return BuyOutcome.Failed;
     }
 
     this.log.info(
-      `buying token=${launch.token} amount=${this.config.amountEth} ETH expectedOut=${expectedOut} minOut=${minTokensOut} snipeTax=${taxResult.snipeTaxBps}bps slippage=${this.config.slippageBps}bps`,
+      `buying token=${launch.token} amount=${this.config.amountEth} ETH minOut=${minTokensOut} snipeTax=${taxResult.snipeTaxBps}bps`,
     );
 
     return this.executeBuy(launch, minTokensOut);
   }
 
-  private getSkipReason(launch: PonsLaunch): string | null {
-    if (launch.blockTimestamp === null) {
-      return "missing blockTimestamp";
-    }
+  private async waitUntilMinDelay(launch: PonsLaunch): Promise<void> {
+    const confirmMs = getConfirmTimeMs(launch)!;
+    const waitMs = Math.max(0, confirmMs + this.config.delayMs - Date.now());
 
+    this.log.info(`waiting ${waitMs}ms before snipe-tax check token=${launch.token}`);
+    await sleep(waitMs);
+  }
+
+  private async quoteMinTokensOut(launch: PonsLaunch): Promise<bigint | null> {
+    try {
+      const expectedOut = await quoteCurveBuy(
+        this.publicClient,
+        launch.curve,
+        this.walletAddress,
+        this.quoteIn,
+      );
+      return applySlippage(expectedOut, this.config.slippageBps);
+    } catch (error) {
+      this.log.error(`quote failed token=${launch.token}: ${formatError(error)}`);
+      return null;
+    }
+  }
+
+  private getSkipReason(launch: PonsLaunch): string | null {
+    if (launch.blockTimestamp === null) return "missing blockTimestamp";
     if (launch.pairToken.toLowerCase() !== NATIVE_PAIR_TOKEN) {
       return "only native ETH pairs are supported";
     }
-
     return null;
   }
 
@@ -111,7 +103,7 @@ export class CurveBuyer {
 
     try {
       this.log.info(
-        `submitting token=${launch.token} curve=${launch.curve} priorityFee=${this.config.priorityFeeGwei}gwei maxFee=${this.config.maxFeeGwei}gwei`,
+        `submitting token=${launch.token} priorityFee=${this.config.priorityFeeGwei}gwei maxFee=${this.config.maxFeeGwei}gwei`,
       );
 
       const hash: Hash = await this.walletClient.writeContract({
@@ -141,8 +133,7 @@ export class CurveBuyer {
       this.log.error(`reverted token=${launch.token} tx=${hash} elapsed=${elapsedMs}ms`);
       return BuyOutcome.Failed;
     } catch (error) {
-      const elapsedMs = Date.now() - startedAt;
-      this.log.error(`failed token=${launch.token} elapsed=${elapsedMs}ms`, error);
+      this.log.error(`failed token=${launch.token}: ${formatError(error)}`);
       return BuyOutcome.Failed;
     }
   }

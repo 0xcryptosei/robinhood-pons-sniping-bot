@@ -1,20 +1,22 @@
 # Robinhood Pons Sniping Bot
 
-Detect new **Pons V2** token launches on Robinhood Chain (chain id `4663`) via WebSocket, fetch token metadata, and buy on the bonding curve.
+Detect new **Pons V2** token launches on Robinhood Chain (chain id `4663`), fetch token metadata, and buy on the bonding curve with snipe-tax protection, slippage limits, and priority gas.
 
 ## Features
 
-- Live `TokenLaunched` event subscription on the Pons V2 factory
+- Live `TokenLaunched` WebSocket subscription
 - Detection delay logging (`confirmTime` vs detect time)
-- Token metadata reads (`name`, `symbol`, `decimals`, `getTokenInfo()`)
-- Bonding curve buy via `curve.buy()` (ETH pairs, configurable delay after confirm time)
+- Token metadata with retry (`name`, `symbol`, `getTokenInfo()`)
+- Pause detection while waiting / buying (one launch at a time)
+- Snipe tax guard via `currentSnipeTaxBps()`
+- Slippage-protected buys (`minTokensOut` from simulation)
+- EIP-1559 priority gas for faster confirmation
 
 ## Quick start
 
 ```bash
 npm install
 cp .env.example .env
-# edit .env with your ROBINHOOD_WSS_URL
 npm start
 ```
 
@@ -23,52 +25,43 @@ npm start
 | Variable | Required | Description |
 |---|---|---|
 | `ROBINHOOD_WSS_URL` | yes | WebSocket RPC URL |
-| `ROBINHOOD_RPC_URL` | no | HTTP RPC for token reads (defaults to WSS URL with `https://`) |
-| `BACKFILL_BLOCKS` | no | Historical log backfill on startup (`0` = live only) |
-| `BUY_ENABLED` | no | Enable auto-buy (`true` by default) |
-| `PRIVATE_KEY` | if buy enabled | Wallet private key for buy txs |
-| `BUY_AMOUNT_ETH` | no | ETH amount per buy (default `0.01`) |
-| `BUY_DELAY_MS` | no | Min wait after on-chain confirm before buy (default `2000`) |
-| `MAX_SNIPE_TAX_BPS` | no | Max snipe tax to accept, in bps (default `100` = 1%) |
-| `SNIPE_TAX_POLL_MS` | no | How often to re-check snipe tax (default `200`) |
-| `SNIPE_TAX_MAX_WAIT_MS` | no | Extra wait for tax to drop after min delay (default `8000`) |
-| `SLIPPAGE_BPS` | no | Slippage for `minTokensOut` (default `300` = 3%) |
-| `PRIORITY_FEE_GWEI` | no | Priority fee for buy txs (default `2`) |
-| `MAX_FEE_GWEI` | no | Max fee cap for buy txs (default `50`) |
-| `BUY_RESUME_ON_FAILURE` | no | Resume detection after failed buy (default `false`) |
+| `ROBINHOOD_RPC_URL` | no | HTTP RPC for reads/txs (defaults to WSS → `https://`) |
+| `BACKFILL_BLOCKS` | no | Historical backfill on startup (`0` = live only) |
+| `BUY_ENABLED` | no | Enable auto-buy (default `true`) |
+| `PRIVATE_KEY` | if buy enabled | Wallet private key |
+| `BUY_AMOUNT_ETH` | no | ETH per buy (default `0.01`) |
+| `BUY_DELAY_MS` | no | Min wait after confirm (default `2000`) |
+| `MAX_SNIPE_TAX_BPS` | no | Max snipe tax in bps (default `100`) |
+| `SNIPE_TAX_POLL_MS` | no | Snipe tax poll interval (default `200`) |
+| `SNIPE_TAX_MAX_WAIT_MS` | no | Max extra wait for tax drop (default `8000`) |
+| `SLIPPAGE_BPS` | no | Slippage tolerance (default `300` = 3%) |
+| `PRIORITY_FEE_GWEI` | no | Priority fee (default `2`) |
+| `MAX_FEE_GWEI` | no | Max fee cap (default `50`) |
+| `BUY_RESUME_ON_FAILURE` | no | Resume after failed buy (default `false`) |
 
 ## Example output
 
 ![Detection and token info output](docs/screenshots/detection-output.png)
 
-Sample log lines:
-
-```text
-[bot:launch] confirmTime=2026-09-18T08:48:42.000Z | delay=1186ms | block=66093971 | token=0xBe8A... | curve=0xAf88... | ...
-[bot:token]  token=0xBe8A... | name=... | symbol=... | decimals=18 | logo=ipfs://...
-```
-
-> **Note:** Token metadata reads can fail immediately after launch if the contract is not fully initialized yet (`symbol()` / `decimals()` returning empty data). Detection still works; metadata may succeed on a retry in a later phase.
-
 ## Project structure
 
 ```
 src/
-├── bot/sniping-bot.ts
-├── buy/               # Curve buy execution
-├── detector/          # Launch event parsing + subscription
-├── token/             # Token metadata fetch + format
-├── contracts/         # Pons ABIs + addresses
-├── rpc/               # WebSocket, HTTP, wallet clients
+├── index.ts
+├── bot/sniping-bot.ts       # Orchestrator
+├── detector/                # Launch detection
+├── buy/                     # Buy, snipe tax, tx quote/gas
+├── token/                   # Metadata fetch + format
+├── contracts/pons.ts        # ABIs + addresses
+├── rpc/clients.ts           # WS, HTTP, wallet clients
 ├── config/
 ├── chain/
-└── lib/
+└── lib/                     # logger, sleep, helpers
 ```
 
 ## Scripts
 
 ```bash
-npm start       # run detector
-npm run detect  # alias for start
+npm start
 npm run typecheck
 ```
