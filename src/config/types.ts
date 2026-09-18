@@ -10,6 +10,9 @@ export type BuyConfig = {
   maxSnipeTaxBps: number;
   snipeTaxPollMs: number;
   snipeTaxMaxWaitMs: number;
+  slippageBps: number;
+  priorityFeeGwei: string;
+  maxFeeGwei: string;
 };
 
 export type AppConfig = {

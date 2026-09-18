@@ -32,6 +32,9 @@ npm start
 | `MAX_SNIPE_TAX_BPS` | no | Max snipe tax to accept, in bps (default `100` = 1%) |
 | `SNIPE_TAX_POLL_MS` | no | How often to re-check snipe tax (default `200`) |
 | `SNIPE_TAX_MAX_WAIT_MS` | no | Extra wait for tax to drop after min delay (default `8000`) |
+| `SLIPPAGE_BPS` | no | Slippage for `minTokensOut` (default `300` = 3%) |
+| `PRIORITY_FEE_GWEI` | no | Priority fee for buy txs (default `2`) |
+| `MAX_FEE_GWEI` | no | Max fee cap for buy txs (default `50`) |
 | `BUY_RESUME_ON_FAILURE` | no | Resume detection after failed buy (default `false`) |
 
 ## Example output

@@ -7,6 +7,8 @@ import { getConfirmTimeMs } from "../detector/launch.js";
 import type { PonsLaunch } from "../detector/types.js";
 import { sleep } from "../lib/sleep.js";
 import { Logger } from "../lib/logger.js";
+import { buildTxGasParams } from "./gas.js";
+import { applySlippage, quoteCurveBuy } from "./quote.js";
 import { SnipeTaxGuard } from "./snipe-tax.js";
 import { BuyOutcome } from "./types.js";
 
@@ -68,11 +70,27 @@ export class CurveBuyer {
       return BuyOutcome.Skipped;
     }
 
+    let expectedOut: bigint;
+    let minTokensOut: bigint;
+
+    try {
+      expectedOut = await quoteCurveBuy(
+        this.publicClient,
+        launch.curve,
+        this.walletAddress,
+        this.quoteIn,
+      );
+      minTokensOut = applySlippage(expectedOut, this.config.slippageBps);
+    } catch (error) {
+      this.log.error(`quote failed token=${launch.token}`, error);
+      return BuyOutcome.Failed;
+    }
+
     this.log.info(
-      `buying token=${launch.token} amount=${this.config.amountEth} ETH snipeTax=${taxResult.snipeTaxBps}bps`,
+      `buying token=${launch.token} amount=${this.config.amountEth} ETH expectedOut=${expectedOut} minOut=${minTokensOut} snipeTax=${taxResult.snipeTaxBps}bps slippage=${this.config.slippageBps}bps`,
     );
 
-    return this.executeBuy(launch);
+    return this.executeBuy(launch, minTokensOut);
   }
 
   private getSkipReason(launch: PonsLaunch): string | null {
@@ -87,11 +105,14 @@ export class CurveBuyer {
     return null;
   }
 
-  private async executeBuy(launch: PonsLaunch): Promise<BuyOutcome> {
+  private async executeBuy(launch: PonsLaunch, minTokensOut: bigint): Promise<BuyOutcome> {
     const startedAt = Date.now();
+    const gas = buildTxGasParams(this.config);
 
     try {
-      this.log.info(`submitting token=${launch.token} curve=${launch.curve}`);
+      this.log.info(
+        `submitting token=${launch.token} curve=${launch.curve} priorityFee=${this.config.priorityFeeGwei}gwei maxFee=${this.config.maxFeeGwei}gwei`,
+      );
 
       const hash: Hash = await this.walletClient.writeContract({
         chain: robinhoodChain,
@@ -99,8 +120,10 @@ export class CurveBuyer {
         address: launch.curve,
         abi: ponsCurveAbi,
         functionName: "buy",
-        args: [this.quoteIn, 0n, this.walletAddress],
+        args: [this.quoteIn, minTokensOut, this.walletAddress],
         value: this.quoteIn,
+        maxPriorityFeePerGas: gas.maxPriorityFeePerGas,
+        maxFeePerGas: gas.maxFeePerGas,
       });
 
       this.log.info(`submitted token=${launch.token} tx=${hash}`);

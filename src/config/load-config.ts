@@ -11,6 +11,9 @@ const DEFAULT_BUY_DELAY_MS = 2_000;
 const DEFAULT_MAX_SNIPE_TAX_BPS = 100;
 const DEFAULT_SNIPE_TAX_POLL_MS = 200;
 const DEFAULT_SNIPE_TAX_MAX_WAIT_MS = 8_000;
+const DEFAULT_SLIPPAGE_BPS = 300;
+const DEFAULT_PRIORITY_FEE_GWEI = "2";
+const DEFAULT_MAX_FEE_GWEI = "50";
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -47,6 +50,9 @@ export function loadConfig(): AppConfig {
       maxSnipeTaxBps: Number(process.env.MAX_SNIPE_TAX_BPS ?? DEFAULT_MAX_SNIPE_TAX_BPS),
       snipeTaxPollMs: Number(process.env.SNIPE_TAX_POLL_MS ?? DEFAULT_SNIPE_TAX_POLL_MS),
       snipeTaxMaxWaitMs: Number(process.env.SNIPE_TAX_MAX_WAIT_MS ?? DEFAULT_SNIPE_TAX_MAX_WAIT_MS),
+      slippageBps: Number(process.env.SLIPPAGE_BPS ?? DEFAULT_SLIPPAGE_BPS),
+      priorityFeeGwei: process.env.PRIORITY_FEE_GWEI?.trim() || DEFAULT_PRIORITY_FEE_GWEI,
+      maxFeeGwei: process.env.MAX_FEE_GWEI?.trim() || DEFAULT_MAX_FEE_GWEI,
     },
   };
 }
@@ -77,5 +83,21 @@ export function validateConfig(config: AppConfig): void {
 
   if (!Number.isFinite(buy.snipeTaxMaxWaitMs) || buy.snipeTaxMaxWaitMs < 0) {
     throw new Error("SNIPE_TAX_MAX_WAIT_MS must be a non-negative number");
+  }
+
+  if (!Number.isFinite(buy.slippageBps) || buy.slippageBps < 0 || buy.slippageBps >= 10_000) {
+    throw new Error("SLIPPAGE_BPS must be between 0 and 9999");
+  }
+
+  const priorityFee = Number(buy.priorityFeeGwei);
+  const maxFee = Number(buy.maxFeeGwei);
+  if (!Number.isFinite(priorityFee) || priorityFee <= 0) {
+    throw new Error("PRIORITY_FEE_GWEI must be a positive number");
+  }
+  if (!Number.isFinite(maxFee) || maxFee <= 0) {
+    throw new Error("MAX_FEE_GWEI must be a positive number");
+  }
+  if (priorityFee > maxFee) {
+    throw new Error("PRIORITY_FEE_GWEI must not exceed MAX_FEE_GWEI");
   }
 }

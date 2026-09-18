@@ -69,7 +69,7 @@ export class SnipingBot {
 
     if (this.buyer) {
       this.log.info(
-        `buy enabled wallet=${this.buyer.address} amount=${this.config.buy.amountEth} ETH delay=${this.config.buy.delayMs}ms maxSnipeTax=${this.config.buy.maxSnipeTaxBps}bps`,
+        `buy enabled wallet=${this.buyer.address} amount=${this.config.buy.amountEth} ETH delay=${this.config.buy.delayMs}ms maxSnipeTax=${this.config.buy.maxSnipeTaxBps}bps slippage=${this.config.buy.slippageBps}bps gas=${this.config.buy.priorityFeeGwei}/${this.config.buy.maxFeeGwei}gwei`,
       );
       return;
     }
