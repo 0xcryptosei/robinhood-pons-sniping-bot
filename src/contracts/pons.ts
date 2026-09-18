@@ -14,6 +14,7 @@ export const ponsFactoryAbi = [
 
 export const ponsCurveAbi = parseAbi([
   "function buy(uint256 quoteIn, uint256 minTokensOut, address recipient) payable returns (uint256 tokensOut)",
+  "function currentSnipeTaxBps(address recipient) view returns (uint256)",
 ]);
 
 export const ponsTokenAbi = parseAbi([

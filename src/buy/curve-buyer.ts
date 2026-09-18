@@ -7,11 +7,13 @@ import { getConfirmTimeMs } from "../detector/launch.js";
 import type { PonsLaunch } from "../detector/types.js";
 import { sleep } from "../lib/sleep.js";
 import { Logger } from "../lib/logger.js";
+import { SnipeTaxGuard } from "./snipe-tax.js";
 import { BuyOutcome } from "./types.js";
 
 export class CurveBuyer {
   private readonly quoteIn: bigint;
   private readonly log: Logger;
+  private readonly snipeTaxGuard: SnipeTaxGuard;
 
   constructor(
     private readonly publicClient: PublicClient,
@@ -22,6 +24,15 @@ export class CurveBuyer {
   ) {
     this.quoteIn = parseEther(config.amountEth);
     this.log = logger.child("buy");
+    this.snipeTaxGuard = new SnipeTaxGuard(
+      publicClient,
+      {
+        maxSnipeTaxBps: config.maxSnipeTaxBps,
+        pollIntervalMs: config.snipeTaxPollMs,
+        maxWaitMs: config.snipeTaxMaxWaitMs,
+      },
+      logger,
+    );
   }
 
   get address(): Address {
@@ -40,10 +51,27 @@ export class CurveBuyer {
     const waitMs = Math.max(0, targetMs - Date.now());
 
     this.log.info(
-      `waiting ${waitMs}ms token=${launch.token} curve=${launch.curve} amount=${this.config.amountEth} ETH`,
+      `waiting ${waitMs}ms before snipe-tax check token=${launch.token} curve=${launch.curve}`,
     );
 
     await sleep(waitMs);
+
+    const taxResult = await this.snipeTaxGuard.waitUntilAcceptable(
+      launch.curve,
+      this.walletAddress,
+    );
+
+    if (!taxResult.ok) {
+      this.log.warn(
+        `skip ${launch.token}: snipe tax too high (${taxResult.snipeTaxBps} bps) after ${this.config.snipeTaxMaxWaitMs}ms`,
+      );
+      return BuyOutcome.Skipped;
+    }
+
+    this.log.info(
+      `buying token=${launch.token} amount=${this.config.amountEth} ETH snipeTax=${taxResult.snipeTaxBps}bps`,
+    );
+
     return this.executeBuy(launch);
   }
 

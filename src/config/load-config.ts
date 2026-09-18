@@ -8,6 +8,9 @@ import type { AppConfig } from "./types.js";
 const DEFAULT_BACKFILL_BLOCKS = 0n;
 const DEFAULT_BUY_AMOUNT_ETH = "0.01";
 const DEFAULT_BUY_DELAY_MS = 2_000;
+const DEFAULT_MAX_SNIPE_TAX_BPS = 100;
+const DEFAULT_SNIPE_TAX_POLL_MS = 200;
+const DEFAULT_SNIPE_TAX_MAX_WAIT_MS = 8_000;
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -41,6 +44,9 @@ export function loadConfig(): AppConfig {
       amountEth: process.env.BUY_AMOUNT_ETH?.trim() || DEFAULT_BUY_AMOUNT_ETH,
       delayMs: Number(process.env.BUY_DELAY_MS ?? DEFAULT_BUY_DELAY_MS),
       resumeOnFailure: parseBoolean(process.env.BUY_RESUME_ON_FAILURE, false),
+      maxSnipeTaxBps: Number(process.env.MAX_SNIPE_TAX_BPS ?? DEFAULT_MAX_SNIPE_TAX_BPS),
+      snipeTaxPollMs: Number(process.env.SNIPE_TAX_POLL_MS ?? DEFAULT_SNIPE_TAX_POLL_MS),
+      snipeTaxMaxWaitMs: Number(process.env.SNIPE_TAX_MAX_WAIT_MS ?? DEFAULT_SNIPE_TAX_MAX_WAIT_MS),
     },
   };
 }
@@ -59,5 +65,17 @@ export function validateConfig(config: AppConfig): void {
 
   if (buy.enabled && !buy.privateKey) {
     throw new Error("BUY_ENABLED=true requires PRIVATE_KEY in .env");
+  }
+
+  if (buy.maxSnipeTaxBps < 0 || buy.maxSnipeTaxBps > 10_000) {
+    throw new Error("MAX_SNIPE_TAX_BPS must be between 0 and 10000");
+  }
+
+  if (!Number.isFinite(buy.snipeTaxPollMs) || buy.snipeTaxPollMs < 50) {
+    throw new Error("SNIPE_TAX_POLL_MS must be at least 50");
+  }
+
+  if (!Number.isFinite(buy.snipeTaxMaxWaitMs) || buy.snipeTaxMaxWaitMs < 0) {
+    throw new Error("SNIPE_TAX_MAX_WAIT_MS must be a non-negative number");
   }
 }

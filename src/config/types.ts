@@ -6,6 +6,10 @@ export type BuyConfig = {
   amountEth: string;
   delayMs: number;
   resumeOnFailure: boolean;
+  /** Max acceptable snipe tax in basis points (100 = 1%). */
+  maxSnipeTaxBps: number;
+  snipeTaxPollMs: number;
+  snipeTaxMaxWaitMs: number;
 };
 
 export type AppConfig = {

@@ -69,7 +69,7 @@ export class SnipingBot {
 
     if (this.buyer) {
       this.log.info(
-        `buy enabled wallet=${this.buyer.address} amount=${this.config.buy.amountEth} ETH delay=${this.config.buy.delayMs}ms`,
+        `buy enabled wallet=${this.buyer.address} amount=${this.config.buy.amountEth} ETH delay=${this.config.buy.delayMs}ms maxSnipeTax=${this.config.buy.maxSnipeTaxBps}bps`,
       );
       return;
     }
@@ -80,17 +80,22 @@ export class SnipingBot {
   private async handleLaunch(launch: PonsLaunch): Promise<void> {
     this.log.child("launch").info(formatLaunch(launch));
 
-    const info = await this.tokenInfo.fetch(launch.token);
-    if (info) {
-      this.log.child("token").info(formatTokenInfo(launch.token, info));
-    }
-
     if (!this.buyer) {
+      const info = await this.tokenInfo.fetch(launch.token);
+      if (info) {
+        this.log.child("token").info(formatTokenInfo(launch.token, info));
+      }
       this.detector.release();
       return;
     }
 
+    // Pause immediately — no new launches while waiting / buying.
     this.detector.pause();
+
+    const info = await this.tokenInfo.fetch(launch.token);
+    if (info) {
+      this.log.child("token").info(formatTokenInfo(launch.token, info));
+    }
 
     const outcome = await this.buyer.buyAfterDelay(launch);
 

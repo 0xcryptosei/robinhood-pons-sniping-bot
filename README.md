@@ -28,7 +28,10 @@ npm start
 | `BUY_ENABLED` | no | Enable auto-buy (`true` by default) |
 | `PRIVATE_KEY` | if buy enabled | Wallet private key for buy txs |
 | `BUY_AMOUNT_ETH` | no | ETH amount per buy (default `0.01`) |
-| `BUY_DELAY_MS` | no | Wait after on-chain confirm before buy (default `2000`) |
+| `BUY_DELAY_MS` | no | Min wait after on-chain confirm before buy (default `2000`) |
+| `MAX_SNIPE_TAX_BPS` | no | Max snipe tax to accept, in bps (default `100` = 1%) |
+| `SNIPE_TAX_POLL_MS` | no | How often to re-check snipe tax (default `200`) |
+| `SNIPE_TAX_MAX_WAIT_MS` | no | Extra wait for tax to drop after min delay (default `8000`) |
 | `BUY_RESUME_ON_FAILURE` | no | Resume detection after failed buy (default `false`) |
 
 ## Example output
